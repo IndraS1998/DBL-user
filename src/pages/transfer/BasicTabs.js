@@ -9,9 +9,57 @@ import { Helmet } from 'react-helmet-async';
 import AddFunds from './AddFunds';
 import WalletToWallet from './WalletToWallet';
 import WithdrawFunds from './WithdrawFunds';
+import { fetchFromRaftNode } from 'src/services/stub';
+import { useSnackbar } from 'notistack';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
+
+  const [allWallets,setAllWallets] = React.useState([])
+  const [personalWallets,setPersonalWallets] = React.useState([])
+  const [allUsers,setAllUsers] = React.useState([])
+  const { enqueueSnackbar } = useSnackbar();
+
+  const fetchPersonalWallets = async () => {
+    const user = JSON.parse(localStorage.getItem("user"))
+    const response = await fetchFromRaftNode(`/api/wallet/user?user_id=${user.UserID}`);
+    try{
+      if (response.status === 200){
+        setPersonalWallets(response.data.wallets)
+      }else{
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    }catch (error) {
+      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+    }
+  };
+
+  const fetchAllWallets = async () => {
+    const response = await fetchFromRaftNode(`/api/admin/users`);
+    try{
+      if (response.status === 200){
+        console.log("users: ",response.data.Users)
+        setAllWallets(response.data.Users)
+      }else{
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    }catch (error) {
+      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    const response = await fetchFromRaftNode(`/api/wallet/user`);
+    try{
+      if (response.status === 200){
+        setPersonalWallets(response.data.wallets)
+      }else{
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    }catch (error) {
+      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+    }
+  };
 
   return (
     <div
