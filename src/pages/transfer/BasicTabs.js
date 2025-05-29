@@ -11,55 +11,10 @@ import WalletToWallet from './WalletToWallet';
 import WithdrawFunds from './WithdrawFunds';
 import { fetchFromRaftNode } from 'src/services/stub';
 import { useSnackbar } from 'notistack';
+import LoadingOverlay from 'src/components/overlay/loading-overlay';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
-
-  const [allWallets,setAllWallets] = React.useState([])
-  const [personalWallets,setPersonalWallets] = React.useState([])
-  const [allUsers,setAllUsers] = React.useState([])
-  const { enqueueSnackbar } = useSnackbar();
-
-  const fetchPersonalWallets = async () => {
-    const user = JSON.parse(localStorage.getItem("user"))
-    const response = await fetchFromRaftNode(`/api/wallet/user?user_id=${user.UserID}`);
-    try{
-      if (response.status === 200){
-        setPersonalWallets(response.data.wallets)
-      }else{
-        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
-      }
-    }catch (error) {
-      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
-    }
-  };
-
-  const fetchAllWallets = async () => {
-    const response = await fetchFromRaftNode(`/api/admin/users`);
-    try{
-      if (response.status === 200){
-        console.log("users: ",response.data.Users)
-        setAllWallets(response.data.Users)
-      }else{
-        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
-      }
-    }catch (error) {
-      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
-    }
-  };
-
-  const fetchAllUsers = async () => {
-    const response = await fetchFromRaftNode(`/api/wallet/user`);
-    try{
-      if (response.status === 200){
-        setPersonalWallets(response.data.wallets)
-      }else{
-        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
-      }
-    }catch (error) {
-      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
-    }
-  };
 
   return (
     <div
@@ -94,6 +49,59 @@ function a11yProps(index) {
 export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
 
+  const [allWallets,setAllWallets] = React.useState([])
+  const [personalWallets,setPersonalWallets] = React.useState([])
+  const [allUsers,setAllUsers] = React.useState([])
+  const [loading,setLoading] = React.useState(false)
+  const { enqueueSnackbar } = useSnackbar();
+  
+  React.useEffect(()=>{
+    fetchAllUsers().then()
+    fetchAllWallets().then()
+    fetchPersonalWallets().then()
+  },[])
+
+  const fetchPersonalWallets = async () => {
+    const user = JSON.parse(localStorage.getItem("user"))
+    const response = await fetchFromRaftNode(`/api/wallet/user?user_id=${user.UserID}`);
+    try{
+      if (response.status === 200){
+        setPersonalWallets(response.data.wallets)
+      }else{
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    }catch (error) {
+      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+    }
+  };
+
+  const fetchAllWallets = async () => {
+    const response = await fetchFromRaftNode(`/api/wallet/all`);
+    try{
+      if (response.status === 200){
+        setAllWallets(response.data.wallets)
+      }else{
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    }catch (error) {
+      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    const response = await fetchFromRaftNode(`/api/admin/users`);
+    console.log(response)
+    try{
+      if (response.status === 200){
+        setAllUsers(response.data.Users)
+      }else{
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    }catch (error) {
+      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+    }
+  };
+
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
@@ -103,6 +111,7 @@ export default function BasicTabs() {
       <Helmet>
         <title> Transfers | e-Wallet </title>
       </Helmet>
+      <LoadingOverlay open={loading}/>
       <Container sx={{ minWidth: '100%' }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
           <Typography variant="h4" gutterBottom>
@@ -119,13 +128,13 @@ export default function BasicTabs() {
               </Tabs>
             </Box>
             <TabPanel value={value} index={0}>
-              <WalletToWallet />
+              <WalletToWallet personalWallets={personalWallets} allUsers={allUsers} allWallets={allWallets} setLoading={setLoading}/>
             </TabPanel>
             <TabPanel value={value} index={1}>
-              <AddFunds />
+              <AddFunds personalWallets={personalWallets} setLoading={setLoading}/>
             </TabPanel>
             <TabPanel value={value} index={2}>
-              <WithdrawFunds />
+              <WithdrawFunds personalWallets={personalWallets} setLoading={setLoading}/>
             </TabPanel>
           </Box>
         </Card>

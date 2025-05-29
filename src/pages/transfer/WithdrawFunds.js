@@ -1,13 +1,12 @@
 import { LoadingButton } from '@mui/lab';
 import { Autocomplete, Button, Card, Grid, Stack, TextField } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import AuthService from '../../services/AuthService';
-import HttpService from '../../services/HttpService';
+import { sendWriteRequest } from 'src/services/stub';
 
-export default function WithdrawFunds() {
+export default function WithdrawFunds({personalWallets,setLoading}) {
   const defaultValues = {
     amount: '',
     fromWalletIban: '',
@@ -30,38 +29,38 @@ export default function WithdrawFunds() {
     });
   };
 
-  useEffect(() => {
-    const userId = AuthService.getCurrentUser()?.id;
-    HttpService.getWithAuth(`/wallets/users/${userId}`).then((result) => {
-      setFromWalletIbans(result.data);
-    });
-  }, []);
-
-  const handleWalletChange = (event) => {
-    setFromWalletIban(event.iban);
+  const handleWalletChange = (newValue) => {
+    setFromWalletIban(newValue);
+    const selectedWallet = personalWallets.find(w => w.WalletID === newValue)
+    console.log(selectedWallet)
     setFormValues({
       ...formValues,
-      fromWalletIban: event.iban,
-      toWalletIban: event.iban,
+      fromWalletIban: newValue,
+      toWalletIban: newValue,
+      description:selectedWallet.Balance
     });
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    HttpService.postWithAuth('/wallets/withdrawFunds', formValues)
-      .then((response) => {
-        enqueueSnackbar('Transfer completed successfully', { variant: 'success' });
-        navigate('/transactions');
+    setLoading(true)
+    try{
+      const response = await sendWriteRequest('POST','/wallet/withdraw',{
+        sender_wallet_id:formValues.fromWalletIban,
+        amount:Number(formValues.amount)
       })
-      .catch((error) => {
-        if (error.response?.data?.errors) {
-          error.response?.data?.errors.map((e) => enqueueSnackbar(e.message, { variant: 'error' }));
-        } else if (error.response?.data?.message) {
-          enqueueSnackbar(error.response?.data?.message, { variant: 'error' });
-        } else {
-          enqueueSnackbar(error.message, { variant: 'error' });
-        }
-      });
+      if(response.status === 200){
+        enqueueSnackbar('Successful operation!', { variant: 'success' });
+      }else if(response.status === 300){
+        enqueueSnackbar('Failed to perform operation', { variant: 'error' });
+      }else{
+        enqueueSnackbar('Failed to perform operation', { variant: 'error' });
+      }
+    }catch(e){
+      enqueueSnackbar('Network error', { variant: 'error' });
+    }
+    
+    setLoading(false)
   };
 
   return (
@@ -87,18 +86,18 @@ export default function WithdrawFunds() {
               disablePortal
               id="toWalletIban"
               noOptionsText="no records"
-              options={toWalletIbans}
-              getOptionLabel={(toWalletIban) => toWalletIban.name}
-              isOptionEqualToValue={(option, value) => option.name === value.name}
+              options={personalWallets.map(wallet => wallet.WalletID)}
+              getOptionLabel={(walletId) => walletId}
+              isOptionEqualToValue={(option, value) => option === value}
               onChange={(event, newValue) => {
                 handleWalletChange(newValue);
               }}
-              renderInput={(params) => <TextField {...params} label="Wallet" />}
+              renderInput={(params) => <TextField {...params} label="Receiver Wallet" />}
             />
             <TextField
               id="description"
               name="description"
-              label="Description"
+              label="Selected wallet balance"
               autoComplete="description"
               required
               value={formValues.description}
