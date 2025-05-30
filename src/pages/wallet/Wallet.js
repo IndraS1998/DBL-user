@@ -14,26 +14,25 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-//import { enqueueSnackbar } from 'notistack';
+import { useSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 import Iconify from '../../components/iconify';
 import Scrollbar from '../../components/scrollbar';
-//import AuthService from '../../services/AuthService';
-//import HttpService from '../../services/HttpService';
+import {fetchFromRaftNode} from '../../services/stub';
 import WalletListHead from './WalletListHead';
 
 const TABLE_HEAD = [
   { id: 'id', label: 'Id', alignRight: false, firstColumn: true },
-  { id: 'name', label: 'Name', alignRight: false },
   { id: 'balance', label: 'Balance', alignRight: false },
-  { id: 'userId', label: 'User', alignRight: false },
+  { id: 'creation_date', label: 'Creation date', alignRight: false },
   { id: 'iban', label: 'IBAN', alignRight: false },
   { id: '' },
 ];
 
 export default function Wallet() {
+  const { enqueueSnackbar } = useSnackbar();
   const [open, setOpen] = useState(null);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState([]);
@@ -60,33 +59,22 @@ export default function Wallet() {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData().then();
   }, []);
 
-  const fetchData = () => {
-    const wallets = [
-      {id : 1, name:'John', balance : 1000, user : {fullName:'John Doe'}, iban:'iban'},
-      {id : 2, name:'John', balance : 200000, user : {fullName:'John Doe'}, iban:'iban'}
-    ]
-    setData(wallets)
-    setSelected(wallets.map((wallet) => wallet.name));
-    /*
-    const userId = AuthService.getCurrentUser()?.id;
-    HttpService.getWithAuth(`/wallets/users/${userId}`)
-      .then((response) => {
-        setData(response.data);
-      })
-      .catch((error) => {
-        if (error?.response?.status === 401) {
-          navigate('/login');
-        } else if (error.response?.data?.errors) {
-          error.response?.data?.errors.map((e) => enqueueSnackbar(e.message, { variant: 'error' }));
-        } else if (error.response?.data?.message) {
-          enqueueSnackbar(error.response?.data?.message, { variant: 'error' });
-        } else {
-          enqueueSnackbar(error.message, { variant: 'error' });
-        }
-      });*/
+  const fetchData = async () => {
+    const user = JSON.parse(localStorage.getItem("user"))
+    const response = await fetchFromRaftNode(`/api/wallet/user?user_id=${user.UserID}`);
+    try{
+      if (response.status === 200){
+        setData(response.data.wallets)
+        setSelected(response.data.wallets.map((wallet) => wallet.WalletID));
+      }else{
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    }catch (error) {
+      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+    }
   };
 
   return (
@@ -115,17 +103,17 @@ export default function Wallet() {
                 <TableBody>
                   {data &&
                     data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
-                      const { id, name, balance, user, iban } = row;
-                      const selectedRecord = selected.indexOf(name) !== -1;
+                      const { WalletID, Balance, CreatedAt } = row;
+                      const selectedRecord = selected.indexOf(WalletID) !== -1;
+                      const date = new Date(CreatedAt)
                       return (
-                        <TableRow hover key={id} tabIndex={-1} role="checkbox" selected={selectedRecord}>
+                        <TableRow hover key={WalletID} tabIndex={-1} role="checkbox" selected={selectedRecord}>
                           <TableCell align="left" sx={{ paddingLeft: 5 }}>
-                            {id}
+                            {WalletID}
                           </TableCell>
-                          <TableCell align="left">{name}</TableCell>
-                          <TableCell align="left">{balance}</TableCell>
-                          <TableCell align="left">{user.fullName}</TableCell>
-                          <TableCell align="left">{iban}</TableCell>
+                          <TableCell align="left">{Balance.toLocaleString()}</TableCell>
+                          <TableCell align="left">{date.toLocaleString()}</TableCell>
+                          <TableCell align="left">iban</TableCell>
                           <TableCell align="right">
                             <IconButton size="large" color="inherit" onClick={handleOpenMenu}>
                               <Iconify icon={'eva:more-vertical-fill'} />

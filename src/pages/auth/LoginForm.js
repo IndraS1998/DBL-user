@@ -4,7 +4,7 @@ import { useSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Iconify from '../../components/iconify';
-import AuthService from '../../services/AuthService';
+import { fetchFromRaftNode } from 'src/services/stub';
 
 export default function LoginForm() {
   const defaultValues = {
@@ -25,24 +25,20 @@ export default function LoginForm() {
     });
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    const val = AuthService.login(formValues)
-    if (val){
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    const res = await fetchFromRaftNode(`/api/user/sign-in?email=${formValues.username}&password=${formValues.password}`);
+    
+    if(!res){
+      enqueueSnackbar('Network Error. Please try again later!', { variant: 'error' });
+    }
+    if(res.status === 200){
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      enqueueSnackbar('Login successful!', { variant: 'success' });
       navigate('/');
     }else{
-      enqueueSnackbar('Login failed. Please check your credentials.', { variant: 'error' });
+      enqueueSnackbar('invalid credentials.', { variant: 'error' });
     }
-      /*
-    if (error.response?.data?.errors) {
-        error.response?.data?.errors.map((e) => enqueueSnackbar(e.message, { variant: 'error' }));
-      } else if (error.response?.data?.message) {
-        enqueueSnackbar(error.response?.data?.message, { variant: 'error' });
-      } else {
-        enqueueSnackbar(error.message, { variant: 'error' });
-      }
-    }
-        */
   };
 
   return (

@@ -1,13 +1,13 @@
 import { LoadingButton } from '@mui/lab';
 import { Autocomplete, Button, Card, Grid, Stack, TextField } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import AuthService from '../../services/AuthService';
-import HttpService from '../../services/HttpService';
+import { sendWriteRequest } from 'src/services/stub';
 
-export default function WalletToWallet() {
+
+export default function WalletToWallet({personalWallets, allWallets, allUsers, setLoading}) {
   const defaultValues = {
     amount: '',
     fromWalletIban: '',
@@ -15,12 +15,11 @@ export default function WalletToWallet() {
     description: '',
     typeId: 1, // set as Transfer by default
   };
-
+  
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const [formValues, setFormValues] = useState(defaultValues);
-  const [fromWalletIbans, setFromWalletIbans] = useState([]);
-  const [fromWalletIban, setFromWalletIban] = useState();
+  
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -30,37 +29,46 @@ export default function WalletToWallet() {
     });
   };
 
-  useEffect(() => {
-    const userId = AuthService.getCurrentUser()?.id;
-    HttpService.getWithAuth(`/wallets/users/${userId}`).then((result) => {
-      setFromWalletIbans(result.data);
-    });
-  }, []);
-
-  const handleWalletChange = (event) => {
-    setFromWalletIban(event.iban);
-    setFormValues({
-      ...formValues,
-      fromWalletIban: event.iban,
-    });
+  const handleSenderWalletChange = (newValue) => {
+    setFormValues(prev => ({
+      ...prev,
+      fromWalletIban: newValue,
+    }));
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    HttpService.postWithAuth('/wallets/transfer', formValues)
-      .then((response) => {
-        enqueueSnackbar('Transfer completed successfully', { variant: 'success' });
-        navigate('/transactions');
+  const handleReceiverWalletChange = (newValue) => {
+    const selectedWallet = allWallets.find(w => w.WalletID === newValue)
+    const user = allUsers.find(user => user.UserID === selectedWallet?.UserID)
+    const userDesc = `${user.FirstName} ${user.LastName}`
+    
+    setFormValues(prev => ({
+      ...prev,
+      toWalletIban: selectedWallet?.WalletID || '',
+      description: userDesc
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    try{
+      const response = await sendWriteRequest('POST','/wallet/transfer',{
+        sender_wallet_id:formValues.fromWalletIban,
+        receiver_wallet_id:formValues.toWalletIban,
+        amount:Number(formValues.amount)
       })
-      .catch((error) => {
-        if (error.response?.data?.errors) {
-          error.response?.data?.errors.map((e) => enqueueSnackbar(e.message, { variant: 'error' }));
-        } else if (error.response?.data?.message) {
-          enqueueSnackbar(error.response?.data?.message, { variant: 'error' });
-        } else {
-          enqueueSnackbar(error.message, { variant: 'error' });
-        }
-      });
+      if(response.status === 200){
+        enqueueSnackbar('Successful operation!', { variant: 'success' });
+      }else if(response.status === 300){
+        enqueueSnackbar('Failed to perform operation', { variant: 'error' });
+      }else{
+        enqueueSnackbar('Failed to perform operation', { variant: 'error' });
+      }
+    }catch(e){
+      enqueueSnackbar('Network error', { variant: 'error' });
+    }
+    
+    setLoading(false)
   };
 
   return (
@@ -68,6 +76,7 @@ export default function WalletToWallet() {
       <Helmet>
         <title> Wallet to Wallet | e-Wallet </title>
       </Helmet>
+      
       <Card>
         <Grid container alignItems="left" justify="left" direction="column" sx={{ width: 400, padding: 5 }}>
           <Stack spacing={3}>
@@ -86,22 +95,23 @@ export default function WalletToWallet() {
               disablePortal
               id="fromWalletIban"
               noOptionsText="no records"
-              options={fromWalletIbans}
-              getOptionLabel={(fromWalletIban) => fromWalletIban.name}
-              isOptionEqualToValue={(option, value) => option.name === value.name}
-              onChange={(event, newValue) => {
-                handleWalletChange(newValue);
-              }}
+              options={personalWallets.map(wallet => wallet.WalletID)}
+              getOptionLabel={(walletId) => walletId}
+              isOptionEqualToValue={(option, value) => option === value}
+              onChange={(event, newValue) => handleSenderWalletChange(newValue)}
               renderInput={(params) => <TextField {...params} label="Sender Wallet" />}
             />
-            <TextField
-              id="toWalletIban"
-              name="toWalletIban"
-              label="IBAN of Receiver Wallet"
-              autoComplete="toWalletIban"
+            <Autocomplete
+              ListboxProps={{ style: { maxHeight: 200, overflow: 'auto' } }}
               required
-              value={formValues.toWalletIban}
-              onChange={handleInputChange}
+              disablePortal
+              id="toWalletIban"
+              noOptionsText="no records"
+              options={allWallets.map(wallet => wallet.WalletID)}
+              getOptionLabel={(walletId) => walletId}
+              isOptionEqualToValue={(option, value) => option === value}
+              onChange={(event, newValue) => handleReceiverWalletChange(newValue)}
+              renderInput={(params) => <TextField {...params} label="Receiver Wallet" />}
             />
             <TextField
               id="description"

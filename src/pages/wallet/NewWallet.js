@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import AuthService from '../../services/AuthService';
-import HttpService from '../../services/HttpService';
+import LoadingOverlay from '../../components/overlay/loading-overlay';
+import { sendWriteRequest } from 'src/services/stub';
 
 export default function NewWallet() {
   const defaultValues = {
@@ -19,6 +20,7 @@ export default function NewWallet() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const [formValues, setFormValues] = useState(defaultValues);
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -28,22 +30,19 @@ export default function NewWallet() {
     });
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    HttpService.postWithAuth('/wallets', formValues)
-      .then((response) => {
-        enqueueSnackbar('Wallet created successfully', { variant: 'success' });
-        navigate('/wallets');
-      })
-      .catch((error) => {
-        if (error.response?.data?.errors) {
-          error.response?.data?.errors.map((e) => enqueueSnackbar(e.message, { variant: 'error' }));
-        } else if (error.response?.data?.message) {
-          enqueueSnackbar(error.response?.data?.message, { variant: 'error' });
-        } else {
-          enqueueSnackbar(error.message, { variant: 'error' });
-        }
-      });
+    setLoading(true);
+    const user = JSON.parse(localStorage.getItem('user'));
+    const response = await sendWriteRequest('POST','/wallet/create',{user_id:user.UserID})
+    if(response.status === 200){
+      setLoading(false);
+      enqueueSnackbar('Wallet created successfully!', { variant: 'success' });
+      navigate('/wallets');
+    }else{
+      setLoading(false);
+      enqueueSnackbar('System Error. Please try again later!', { variant: 'error' });
+    }
   };
 
   return (
@@ -51,6 +50,7 @@ export default function NewWallet() {
       <Helmet>
         <title> New Wallet | e-Wallet </title>
       </Helmet>
+      <LoadingOverlay open={loading} />
       <Container sx={{ minWidth: '100%' }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
           <Typography variant="h4" gutterBottom>

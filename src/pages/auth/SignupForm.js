@@ -1,54 +1,87 @@
 import { LoadingButton } from '@mui/lab';
-import { IconButton, InputAdornment, Stack, TextField } from '@mui/material';
+import { IconButton, InputAdornment, Stack, TextField,Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Iconify from '../../components/iconify';
-import AuthService from '../../services/AuthService';
+import LoadingOverlay from 'src/components/overlay/loading-overlay';
+import { sendWriteRequest } from 'src/services/stub';
+import { v4 as uuidv4 } from 'uuid';
+
 
 export default function SignupForm() {
   const defaultValues = {
     firstName: '',
     lastName: '',
-    username: '',
     email: '',
     password: '',
-    roles: ['ROLE_USER'],
+    confirmPassword: '',
+    dob: null,
   };
 
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
   const [formValues, setFormValues] = useState(defaultValues);
+  const [errors,setErrors] = useState({passwordMatch:false})
+  const [loading,setLoading] = useState(false)
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormValues({
-      ...formValues,
-      [name]: value,
-    });
+      if (name === 'dob') {
+      const date = new Date(value);
+      const isoString = date.toISOString(); // Converts to "2023-12-25T15:04:05Z" format
+      setFormValues({
+        ...formValues,
+        [name]: isoString,
+      });
+    } else {
+      setFormValues({
+        ...formValues,
+        [name]: value,
+      });
+    }
+     // Check password match when either password field changes
+    if (name === 'password' || name === 'confirmPassword') {
+      setErrors({
+        ...errors,
+        passwordMatch: formValues.password !== value && name === 'confirmPassword'
+      });
+    }
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
+    if( formValues.password !== formValues.confirmPassword){
+      return
+    }
+    setLoading(true)
     event.preventDefault();
-    AuthService.signup(formValues)
-      .then((response) => {
+    try{
+      const r = await sendWriteRequest('POST','/user/signup',{
+        first_name:formValues.firstName,
+        last_name:formValues.lastName,
+        password:formValues.password,
+        email:formValues.email,
+        id_number: uuidv4(),
+        id_image_front: uuidv4(),
+        id_image_back:uuidv4(),
+        dob:formValues.dob,
+      })
+      if(r.status === 200){
         enqueueSnackbar('Signed up successfully', { variant: 'success' });
         navigate('/login');
-      })
-      .catch((error) => {
-        if (error.response?.data?.errors) {
-          error.response?.data?.errors.map((e) => enqueueSnackbar(e.message, { variant: 'error' }));
-        } else if (error.response?.data?.message) {
-          enqueueSnackbar(error.response?.data?.message, { variant: 'error' });
-        } else {
-          enqueueSnackbar(error.message, { variant: 'error' });
-        }
-      });
+      }else{
+        enqueueSnackbar("Failure to create user!", { variant: 'error' });
+      }
+    }catch(e){
+      enqueueSnackbar("Network error!", { variant: 'error' });
+    }
+    setLoading(false)
   };
 
   return (
     <>
+      <LoadingOverlay open={loading}/>
       <Stack spacing={3}>
         <TextField
           id="firstName"
@@ -70,15 +103,6 @@ export default function SignupForm() {
           onChange={handleInputChange}
         />
         <TextField
-          id="username"
-          name="username"
-          label="Username"
-          autoComplete="username"
-          required
-          value={formValues.username}
-          onChange={handleInputChange}
-        />
-        <TextField
           id="email"
           name="email"
           label="email"
@@ -86,6 +110,19 @@ export default function SignupForm() {
           required
           value={formValues.email}
           onChange={handleInputChange}
+        />
+        <TextField
+          fullWidth
+          type="date"
+          label="Date of Birth"
+          name="dob"
+          value={formValues.dob}
+          onChange={handleInputChange}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{
+            max: new Date().toISOString().split("T")[0], // Max = today
+          }}
+          required
         />
         <TextField
           id="password"
@@ -106,6 +143,30 @@ export default function SignupForm() {
             ),
           }}
         />
+        <TextField
+          id="confirmPassword"
+          name="confirmPassword"
+          label="confirmPassword"
+          autoComplete="confirmPassword"
+          type={showPassword ? 'text' : 'password'}
+          required
+          value={formValues.confirmPassword}
+          onChange={handleInputChange}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                  <Iconify icon={showPassword ? 'eva:eye-fill' : 'eva:eye-off-fill'} />
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        {errors.passwordMatch && (
+          <Typography color="error" variant="caption">
+            Passwords do not match
+          </Typography>
+        )}
       </Stack>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ my: 2 }} />
       <LoadingButton fullWidth size="large" type="submit" variant="contained" onClick={handleSubmit}>
