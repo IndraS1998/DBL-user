@@ -18,7 +18,6 @@ export default function WithdrawFunds({personalWallets,setLoading}) {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const [formValues, setFormValues] = useState(defaultValues);
-  const [toWalletIbans, setFromWalletIbans] = useState([]);
   const [toWalletIban, setFromWalletIban] = useState();
 
   const handleInputChange = (e) => {
