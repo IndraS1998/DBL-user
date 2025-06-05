@@ -69,7 +69,7 @@ async function sendWriteRequest(method,endpoint,payload){
 
   // Polling for log commitment
   const maxRetries = 5
-  const probingInterval = 8000
+  const probingInterval = 800
   let attempts = 0
 
   let finalResponse;
