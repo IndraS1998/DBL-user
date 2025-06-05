@@ -19,16 +19,14 @@ import { useNavigate } from 'react-router-dom';
 import Iconify from '../../components/iconify';
 import Label from '../../components/label';
 import Scrollbar from '../../components/scrollbar';
-import AuthService from '../../services/AuthService';
-import HttpService from '../../services/HttpService';
 import TransactionListHead from './TransactionListHead';
+import { fetchFromRaftNode } from 'src/services/stub';
 
 const TABLE_HEAD = [
   { id: 'id', label: 'Id', alignRight: false, firstColumn: true },
-  { id: 'fromWallet', label: 'Sender', alignRight: false },
-  { id: 'toWallet', label: 'Receiver', alignRight: false },
+  { id: 'fromWallet', label: 'Sender Wallet', alignRight: false },
+  { id: 'toWallet', label: 'Receiver Name (Wallet)', alignRight: false },
   { id: 'amount', label: 'Amount', alignRight: true },
-  { id: 'description', label: 'Description', alignRight: false },
   { id: 'createdAt', label: 'Time of Transaction', alignRight: false },
   { id: 'type', label: 'Type', alignRight: false },
   { id: 'status', label: 'Status', alignRight: false },
@@ -36,19 +34,16 @@ const TABLE_HEAD = [
 ];
 
 export default function Transaction() {
+  const [user,setUser] = useState(JSON.parse(localStorage.getItem("user")));
   const [open, setOpen] = useState(null);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState([]);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [data, setData] = useState([]);
-  const navigate = useNavigate();
+  const [allUsers,setAllUsers] = useState([])
 
   const handleOpenMenu = (event) => {
     setOpen(event.currentTarget);
-  };
-
-  const handleCloseMenu = () => {
-    setOpen(null);
   };
 
   const handleChangePage = (event, newPage) => {
@@ -64,26 +59,34 @@ export default function Transaction() {
 
   useEffect(() => {
     fetchData();
+    fetchAllUsers()
   }, []);
 
-  const fetchData = () => {
-    const userId = AuthService.getCurrentUser()?.id;
-    HttpService.getWithAuth(`/transactions/users/${userId}`)
-      .then((response) => {
-        setData(response.data.content);
-      })
-      .catch((error) => {
-        if (error?.response?.status === 401) {
-          navigate('/login');
-        } else if (error.response?.data?.errors) {
-          error.response?.data?.errors.map((e) => enqueueSnackbar(e.message, { variant: 'error' }));
-        } else if (error.response?.data?.message) {
-          enqueueSnackbar(error.response?.data?.message, { variant: 'error' });
-        } else {
-          enqueueSnackbar(error.message, { variant: 'error' });
-        }
-      });
+  const fetchData = async () => {
+    const response = await fetchFromRaftNode(`/api/user/transactions?id=${user.UserID}`);
+    try{
+      if (response.status === 200){
+        setData(response.data.operations);
+      }else{
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    }catch (error) {
+      enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+    }
   };
+
+  const fetchAllUsers = async () => {
+      const response = await fetchFromRaftNode(`/api/admin/users`);
+      try{
+        if (response.status === 200){
+          setAllUsers(response.data.Users)
+        }else{
+          enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+        }
+      }catch (error) {
+        enqueueSnackbar('Failed to fetch user data', { variant: 'error' });
+      }
+    };
 
   return (
     <>
@@ -104,21 +107,31 @@ export default function Transaction() {
                 <TableBody>
                   {data &&
                     data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
-                      const { id, amount, description, createdAt, fromWallet, toWallet, type, status } = row;
-                      const selectedRecord = selected.indexOf(id) !== -1;
+                      const { ID, Amount, Timestamp, Wallet1, Wallet2,Wallet2Ref, Type, Status } = row;
+                      const selectedRecord = selected.indexOf(ID) !== -1;
+                      const date = new Date(Timestamp);
+                      let receiverName = null
+                      if(Wallet2 !== -1){
+                        const receiver = allUsers.find(user => user.UserID === Wallet2);
+                        if (receiver) {
+                          receiverName = `${receiver.FirstName} ${receiver.LastName}`;
+                        } else {
+                          receiverName = "N/A";
+                        }
+                      }
+                      console.log("receiver ref",Wallet2Ref)
                       return (
-                        <TableRow hover key={id} tabIndex={-1} role="checkbox" selected={selectedRecord}>
+                        <TableRow hover key={ID} tabIndex={-1} role="checkbox" selected={selectedRecord}>
                           <TableCell align="left" sx={{ paddingLeft: 5 }}>
-                            {id}
+                            {ID}
                           </TableCell>
-                          <TableCell align="left">{`${fromWallet.user.firstName} ${fromWallet.user.lastName}`}</TableCell>
-                          <TableCell align="left">{`${toWallet.user.firstName} ${toWallet.user.lastName}`}</TableCell>
-                          <TableCell align="right">{amount}</TableCell>
-                          <TableCell align="left">{description}</TableCell>
-                          <TableCell align="left">{createdAt}</TableCell>
-                          <TableCell align="left">{type.name}</TableCell>
+                          <TableCell align="left">{Wallet1}</TableCell>
+                          <TableCell align="left">{receiverName} ({Wallet2 !== -1?Wallet2:"-"})</TableCell>
+                          <TableCell align="right">{Amount}</TableCell>
+                          <TableCell align="left">{date.toLocaleString()}</TableCell>
+                          <TableCell align="left">{Type}</TableCell>
                           <TableCell align="left">
-                            <Label color={status === 'SUCCESS' ? 'success' : 'warning'}>{sentenceCase(status)}</Label>
+                            <Label color={Status === 'success' ? 'success' : 'warning'}>{sentenceCase(Status)}</Label>
                           </TableCell>
                           <TableCell align="right" width="20">
                             <IconButton size="large" color="inherit" onClick={handleOpenMenu}>

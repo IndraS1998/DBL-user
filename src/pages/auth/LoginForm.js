@@ -33,6 +33,7 @@ export default function LoginForm() {
       enqueueSnackbar('Network Error. Please try again later!', { variant: 'error' });
     }
     if(res.status === 200){
+      localStorage.clear()
       localStorage.setItem('user', JSON.stringify(res.data.user));
       enqueueSnackbar('Login successful!', { variant: 'success' });
       navigate('/');

@@ -114,6 +114,7 @@ export default function WalletToWallet({personalWallets, allWallets, allUsers, s
               renderInput={(params) => <TextField {...params} label="Receiver Wallet" />}
             />
             <TextField
+              disabled={true}
               id="description"
               name="description"
               label="Description"

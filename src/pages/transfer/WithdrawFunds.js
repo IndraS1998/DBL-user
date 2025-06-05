@@ -94,6 +94,7 @@ export default function WithdrawFunds({personalWallets,setLoading}) {
               renderInput={(params) => <TextField {...params} label="Receiver Wallet" />}
             />
             <TextField
+              disabled={true}
               id="description"
               name="description"
               label="Selected wallet balance"

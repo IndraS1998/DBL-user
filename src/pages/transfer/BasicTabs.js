@@ -46,11 +46,12 @@ function a11yProps(index) {
   };
 }
 
+
 export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
-
   const [allWallets,setAllWallets] = React.useState([])
   const [personalWallets,setPersonalWallets] = React.useState([])
+  const [user,setUser] = React.useState(JSON.parse(localStorage.getItem("user")));
   const [allUsers,setAllUsers] = React.useState([])
   const [loading,setLoading] = React.useState(false)
   const { enqueueSnackbar } = useSnackbar();
@@ -62,7 +63,6 @@ export default function BasicTabs() {
   },[])
 
   const fetchPersonalWallets = async () => {
-    const user = JSON.parse(localStorage.getItem("user"))
     const response = await fetchFromRaftNode(`/api/wallet/user?user_id=${user.UserID}`);
     try{
       if (response.status === 200){
@@ -90,7 +90,6 @@ export default function BasicTabs() {
 
   const fetchAllUsers = async () => {
     const response = await fetchFromRaftNode(`/api/admin/users`);
-    console.log(response)
     try{
       if (response.status === 200){
         setAllUsers(response.data.Users)
@@ -105,6 +104,37 @@ export default function BasicTabs() {
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
+
+  if(!user.Active){
+    return (
+      <Container sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+        <Card sx={{ p: 4, maxWidth: 500, textAlign: 'center' }}>
+          <Box sx={{ fontSize: 64, mb: 2 }}>
+            ⏳
+          </Box>
+          <Typography variant="h5" gutterBottom>
+            Your account is currently inactive
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+            We are reviewing your information. This process may take a short while.
+          </Typography>
+          <Box
+            sx={{
+              mt: 2,
+              display: 'inline-block',
+              px: 2.5,
+              py: 1.2,
+              bgcolor: 'warning.light',
+              color: 'warning.dark',
+              borderRadius: 2,
+              fontWeight: 500,
+            }}>
+            Please check back later or contact support
+          </Box>
+      </Card>
+      </Container>
+    );
+  }
 
   return (
     <>

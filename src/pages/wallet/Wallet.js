@@ -35,6 +35,7 @@ export default function Wallet() {
   const { enqueueSnackbar } = useSnackbar();
   const [open, setOpen] = useState(null);
   const [page, setPage] = useState(0);
+  const [user,setUser] = useState(JSON.parse(localStorage.getItem("user")));
   const [selected, setSelected] = useState([]);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [data, setData] = useState([]);
@@ -63,7 +64,7 @@ export default function Wallet() {
   }, []);
 
   const fetchData = async () => {
-    const user = JSON.parse(localStorage.getItem("user"))
+    
     const response = await fetchFromRaftNode(`/api/wallet/user?user_id=${user.UserID}`);
     try{
       if (response.status === 200){
@@ -88,6 +89,7 @@ export default function Wallet() {
             My Wallets
           </Typography>
           <Button
+            disabled={!user?.Active}
             variant="contained"
             startIcon={<Iconify icon="eva:plus-fill" />}
             onClick={() => navigate('/wallets/new')}
